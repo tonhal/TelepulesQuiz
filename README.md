@@ -19,6 +19,7 @@ A profilok, a megtanult települések és a statisztikák a böngésző **`local
 - `index.html` — a teljes alkalmazás (HTML + CSS + JS).
 - `data.js` — a települések és járások adatai (a `telepulesek.csv`-ből generálva, irányítószám-duplikátumok kiszűrve).
 - `map.js` — a járások SVG-geometriája az interaktív térképhez.
+- `points.js` — a települések vetített koordinátái (a gyakorlásban a válasz után egy pont mutatja a helyüket a járáson belül).
 - `telepulesek.csv` — a nyers forrásadat.
 - `kozig.png` — referencia közigazgatási térkép.
 

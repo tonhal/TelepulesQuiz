@@ -271,6 +271,9 @@
   .jmap-wrap .jd.correct { fill: var(--green); stroke: #16a34a; }
   .jmap-wrap .jd.wrong { fill: var(--red); stroke: #dc2626; }
   .jmap-wrap .jd.locked { cursor: default; }
+  .jmap-wrap .jd-dot { fill: #fff; stroke: #16a34a; stroke-width: 1.4; vector-effect: non-scaling-stroke; }
+  .jmap-wrap .jd-dot-halo { fill: rgba(34,197,94,.45); transform-box: fill-box; transform-origin: center; animation: dotpulse 1.6s var(--ease) infinite; }
+  @keyframes dotpulse { 0% { opacity: .75; transform: scale(.4); } 70% { opacity: 0; transform: scale(1.6); } 100% { opacity: 0; transform: scale(1.6); } }
   .jmap-tooltip {
     position: absolute; pointer-events: none; z-index: 5;
     background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
@@ -363,6 +366,7 @@
 
 <script src="data.js"></script>
 <script src="map.js"></script>
+<script src="points.js"></script>
 <script>
 "use strict";
 
@@ -936,7 +940,7 @@ function renderPractice() {
 
   // Answer UI: interactive map (rural) — Budapest never reaches here (filtered from pool)
   view.append(el('div', { class: 'jmap-hint' },
-    ps.answered ? 'Zöld: a helyes járás · Piros: amit választottál'
+    ps.answered ? 'Zöld: a helyes járás · Piros: amit választottál · ⚪ a település helye'
                 : 'Vidd az egeret a térkép fölé, és kattints a járásra, amit tippelsz.'));
   view.append(interactiveMap(ps));
 
@@ -993,6 +997,19 @@ function interactiveMap(ps) {
   if (ps.answered) {
     if (paths[ps.correct]) paths[ps.correct].classList.add('correct');
     if (ps.answered !== ps.correct && paths[ps.answered]) paths[ps.answered].classList.add('wrong');
+
+    // Dot showing where the settlement actually is, inside the correct district
+    const pt = typeof SETTLEMENT_POINTS !== 'undefined' ? SETTLEMENT_POINTS[ps.settlement.name] : null;
+    if (pt) {
+      const [px, py] = pt;
+      const halo = document.createElementNS(svgNS, 'circle');
+      halo.setAttribute('cx', px); halo.setAttribute('cy', py);
+      halo.setAttribute('r', 7); halo.setAttribute('class', 'jd-dot-halo');
+      const dot = document.createElementNS(svgNS, 'circle');
+      dot.setAttribute('cx', px); dot.setAttribute('cy', py);
+      dot.setAttribute('r', 3.2); dot.setAttribute('class', 'jd-dot');
+      svg.append(halo, dot);
+    }
   }
 
   wrap.append(svg, tooltip);

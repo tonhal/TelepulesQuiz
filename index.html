@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Településkvíz · Magyarország járásai</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f1117;
+    --bg-soft: #161925;
+    --surface: #1c2030;
+    --surface-2: #232838;
+    --border: #2d3348;
+    --text: #e8eaf0;
+    --text-dim: #9aa2b8;
+    --text-faint: #646b82;
+    --accent: #6366f1;
+    --accent-soft: #4f46e5;
+    --accent-glow: rgba(99,102,241,.35);
+    --green: #22c55e;
+    --green-soft: rgba(34,197,94,.15);
+    --red: #ef4444;
+    --red-soft: rgba(239,68,68,.15);
+    --amber: #f59e0b;
+    --radius: 16px;
+    --radius-sm: 10px;
+    --shadow: 0 10px 40px rgba(0,0,0,.4);
+    --ease: cubic-bezier(.4,0,.2,1);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: radial-gradient(1200px 600px at 50% -10%, #1a1d2e 0%, var(--bg) 55%);
+    color: var(--text);
+    min-height: 100vh;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection { background: var(--accent-glow); }
+
+  /* ---------- Layout ---------- */
+  .app { max-width: 1040px; margin: 0 auto; padding: 0 20px 64px; }
+
+  header.topbar {
+    position: sticky; top: 0; z-index: 50;
+    backdrop-filter: blur(16px);
+    background: rgba(15,17,23,.82);
+    border-bottom: 1px solid var(--border);
+    margin: 0 -20px 28px;
+    padding: 14px 20px;
+  }
+  .topbar-inner { max-width: 1040px; margin: 0 auto; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .brand { display: flex; align-items: center; gap: 11px; font-weight: 800; font-size: 18px; letter-spacing: -.02em; }
+  .brand .logo {
+    width: 34px; height: 34px; border-radius: 9px; flex: none;
+    background: linear-gradient(135deg, var(--accent) 0%, #a855f7 100%);
+    display: grid; place-items: center; font-size: 19px;
+    box-shadow: 0 4px 14px var(--accent-glow);
+  }
+  nav.tabs { display: flex; gap: 4px; margin-left: auto; background: var(--surface); padding: 4px; border-radius: 12px; border: 1px solid var(--border); }
+  nav.tabs button {
+    appearance: none; border: 0; background: transparent; color: var(--text-dim);
+    font: inherit; font-weight: 600; font-size: 14px; padding: 8px 16px; border-radius: 9px;
+    cursor: pointer; transition: all .18s var(--ease); white-space: nowrap;
+  }
+  nav.tabs button:hover { color: var(--text); }
+  nav.tabs button.active { background: var(--accent); color: #fff; box-shadow: 0 2px 10px var(--accent-glow); }
+  nav.tabs button .count { opacity: .7; font-weight: 500; margin-left: 5px; font-size: 12px; }
+
+  .profile-btn {
+    appearance: none; cursor: pointer; font: inherit; font-weight: 600; font-size: 14px;
+    display: flex; align-items: center; gap: 7px; max-width: 170px;
+    background: var(--surface); border: 1px solid var(--border); color: var(--text);
+    padding: 8px 13px; border-radius: 12px; transition: all .18s var(--ease);
+  }
+  .profile-btn:hover { border-color: var(--accent); }
+  .profile-btn .pfx-ico { font-size: 15px; flex: none; }
+  .profile-btn .pfx-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* Profile modal */
+  .profile-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
+  .profile-row {
+    display: flex; align-items: center; gap: 12px; padding: 12px 14px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    cursor: pointer; transition: all .15s var(--ease);
+  }
+  .profile-row:hover { border-color: var(--accent); }
+  .profile-row.active { border-color: var(--accent); background: linear-gradient(135deg, rgba(99,102,241,.14), transparent 70%); }
+  .profile-row .pr-info { flex: 1; min-width: 0; }
+  .profile-row .pr-name { font-weight: 700; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+  .profile-row .pr-badge { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--accent); background: rgba(99,102,241,.15); padding: 2px 7px; border-radius: 100px; }
+  .profile-row .pr-stats { font-size: 12.5px; color: var(--text-dim); margin-top: 2px; }
+  .profile-row .pr-del {
+    flex: none; appearance: none; border: 1px solid var(--border); background: transparent; color: var(--text-dim);
+    width: 30px; height: 30px; border-radius: 8px; cursor: pointer; font-size: 14px; transition: all .15s;
+  }
+  .profile-row .pr-del:hover { border-color: var(--red); color: #fff; background: var(--red); }
+  .profile-create { display: flex; gap: 8px; }
+  .profile-create input {
+    flex: 1; background: var(--surface); border: 1px solid var(--border); color: var(--text);
+    font: inherit; font-size: 14.5px; padding: 11px 14px; border-radius: var(--radius-sm);
+  }
+  .profile-create input:focus { outline: 0; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+  .profile-err { color: var(--red); font-size: 13px; margin-top: 10px; min-height: 16px; }
+
+  .view { animation: fade .3s var(--ease); }
+  @keyframes fade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+  h1.view-title { font-size: 26px; font-weight: 800; letter-spacing: -.03em; margin-bottom: 4px; }
+  p.view-sub { color: var(--text-dim); font-size: 15px; margin-bottom: 24px; }
+
+  /* ---------- Buttons / inputs ---------- */
+  .btn {
+    appearance: none; border: 1px solid var(--border); background: var(--surface);
+    color: var(--text); font: inherit; font-weight: 600; font-size: 14px;
+    padding: 10px 18px; border-radius: var(--radius-sm); cursor: pointer;
+    transition: all .18s var(--ease); display: inline-flex; align-items: center; gap: 8px;
+  }
+  .btn:hover { border-color: var(--accent); transform: translateY(-1px); }
+  .btn:active { transform: translateY(0); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover { background: var(--accent-soft); box-shadow: 0 6px 20px var(--accent-glow); }
+  .btn.ghost { background: transparent; }
+  .btn.sm { padding: 7px 13px; font-size: 13px; }
+  .btn.danger:hover { border-color: var(--red); color: #fff; background: var(--red); }
+
+  .search {
+    position: relative; margin-bottom: 20px;
+  }
+  .search input {
+    width: 100%; background: var(--surface); border: 1px solid var(--border); color: var(--text);
+    font: inherit; font-size: 15px; padding: 13px 16px 13px 44px; border-radius: 12px;
+    transition: border-color .18s var(--ease), box-shadow .18s var(--ease);
+  }
+  .search input::placeholder { color: var(--text-faint); }
+  .search input:focus { outline: 0; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+  .search svg { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: var(--text-faint); pointer-events: none; }
+
+  /* ---------- Browse: county groups + district cards ---------- */
+  .county-group { margin-bottom: 30px; }
+  .county-head {
+    display: flex; align-items: baseline; gap: 10px; margin-bottom: 13px; padding-bottom: 9px;
+    border-bottom: 1px solid var(--border);
+  }
+  .county-head h2 { font-size: 15px; font-weight: 700; letter-spacing: .02em; text-transform: uppercase; color: var(--text-dim); }
+  .county-head .n { font-size: 13px; color: var(--text-faint); font-weight: 500; }
+
+  .district-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 11px; }
+  .district-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    padding: 15px 16px; cursor: pointer; transition: all .18s var(--ease); text-align: left;
+    appearance: none; color: var(--text); font: inherit; position: relative; overflow: hidden;
+  }
+  .district-card::after {
+    content: ''; position: absolute; inset: 0; border-radius: inherit;
+    background: linear-gradient(135deg, var(--accent-glow), transparent 60%); opacity: 0; transition: opacity .2s;
+  }
+  .district-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.3); }
+  .district-card:hover::after { opacity: .5; }
+  .district-card .dname { font-weight: 700; font-size: 15px; letter-spacing: -.01em; margin-bottom: 3px; position: relative; }
+  .district-card .dmeta { font-size: 12.5px; color: var(--text-dim); position: relative; }
+
+  /* ---------- Modal ---------- */
+  .modal-backdrop {
+    position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,.6); backdrop-filter: blur(4px);
+    display: grid; place-items: center; padding: 20px; animation: fade .2s var(--ease);
+  }
+  .modal {
+    background: var(--bg-soft); border: 1px solid var(--border); border-radius: var(--radius);
+    width: 100%; max-width: 560px; max-height: 85vh; display: flex; flex-direction: column;
+    box-shadow: var(--shadow); animation: pop .25s var(--ease);
+  }
+  @keyframes pop { from { opacity: 0; transform: scale(.95) translateY(10px); } to { opacity: 1; transform: none; } }
+  .modal-head { padding: 20px 22px; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; gap: 12px; }
+  .modal-head .mtitle { font-size: 19px; font-weight: 800; letter-spacing: -.02em; }
+  .modal-head .msub { font-size: 13px; color: var(--text-dim); margin-top: 2px; }
+  .modal-close { margin-left: auto; appearance: none; border: 0; background: var(--surface); color: var(--text-dim); width: 32px; height: 32px; border-radius: 8px; cursor: pointer; font-size: 18px; line-height: 1; flex: none; transition: all .15s; }
+  .modal-close:hover { background: var(--red-soft); color: var(--red); }
+  .modal-body { padding: 16px 22px 22px; overflow-y: auto; }
+  .settlement-list { display: flex; flex-direction: column; gap: 6px; }
+  .settlement-chip {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    padding: 9px 14px; font-size: 14.5px; font-weight: 500; display: flex; align-items: center; gap: 8px;
+  }
+  .settlement-chip .tag { font-size: 10px; color: var(--text-faint); text-transform: uppercase; letter-spacing: .04em; margin-left: auto; }
+  .settlement-chip.learned { border-color: rgba(34,197,94,.4); color: var(--green); background: var(--green-soft); }
+
+  /* ---------- Practice ---------- */
+  .practice-wrap { max-width: 720px; margin: 0 auto; }
+  .stats-row { display: flex; gap: 12px; margin-bottom: 22px; flex-wrap: wrap; }
+  .stat {
+    flex: 1; min-width: 110px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 13px 16px;
+  }
+  .stat .v { font-size: 24px; font-weight: 800; letter-spacing: -.02em; }
+  .stat .l { font-size: 12px; color: var(--text-dim); margin-top: 1px; }
+  .stat.good .v { color: var(--green); }
+  .stat.bad .v { color: var(--red); }
+
+  .flashcard {
+    background: linear-gradient(160deg, var(--surface-2), var(--surface));
+    border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 36px 28px; text-align: center; margin-bottom: 20px; position: relative;
+    box-shadow: var(--shadow);
+  }
+  .flashcard .fc-label { font-size: 12.5px; text-transform: uppercase; letter-spacing: .08em; color: var(--text-faint); margin-bottom: 12px; font-weight: 600; }
+  .flashcard .fc-name { font-size: 38px; font-weight: 800; letter-spacing: -.03em; line-height: 1.15; }
+  .flashcard .fc-meta { color: var(--text-dim); font-size: 14px; margin-top: 10px; }
+  .flashcard .fc-type {
+    display: inline-block; margin-top: 14px; font-size: 12px; font-weight: 600;
+    padding: 4px 12px; border-radius: 100px; background: var(--surface); border: 1px solid var(--border); color: var(--text-dim);
+  }
+
+  .answer-search { margin-bottom: 14px; }
+
+  .result-banner {
+    border-radius: var(--radius-sm); padding: 14px 18px; margin-bottom: 18px; font-weight: 600;
+    display: flex; align-items: center; gap: 12px; font-size: 15px; animation: fade .25s var(--ease);
+  }
+  .result-banner.ok { background: var(--green-soft); border: 1px solid rgba(34,197,94,.35); color: var(--green); }
+  .result-banner.no { background: var(--red-soft); border: 1px solid rgba(239,68,68,.35); color: var(--red); }
+  .result-banner .big { font-size: 22px; }
+  .result-banner .guess { font-weight: 500; opacity: .85; }
+
+  .practice-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+
+  /* ---------- Interactive SVG map (practice answering) ---------- */
+  .jmap-wrap {
+    position: relative; border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--bg-soft); margin-bottom: 16px; overflow: hidden; touch-action: none;
+  }
+  .jmap-wrap svg { width: 100%; height: auto; display: block; }
+  .jmap-wrap .jd {
+    fill: var(--surface-2); stroke: #39415c; stroke-width: 0.7;
+    transition: fill .1s linear; cursor: pointer; vector-effect: non-scaling-stroke;
+  }
+  .jmap-wrap.live .jd:hover { fill: var(--accent); }
+  .jmap-wrap .jd.hovered { fill: var(--accent); }
+  .jmap-wrap .jd.correct { fill: var(--green); stroke: #16a34a; }
+  .jmap-wrap .jd.wrong { fill: var(--red); stroke: #dc2626; }
+  .jmap-wrap .jd.locked { cursor: default; }
+  .jmap-tooltip {
+    position: absolute; pointer-events: none; z-index: 5;
+    background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
+    padding: 5px 11px; border-radius: 8px; font-size: 13px; font-weight: 600; white-space: nowrap;
+    transform: translate(-50%, -140%); opacity: 0; transition: opacity .12s; box-shadow: var(--shadow);
+  }
+  .jmap-tooltip.show { opacity: 1; }
+  .jmap-tooltip .tt-county { font-weight: 500; color: var(--text-dim); font-size: 11px; display: block; }
+  .jmap-hint { font-size: 12.5px; color: var(--text-faint); text-align: center; margin: -4px 0 16px; }
+  .jmap-zoomhint { position: absolute; top: 8px; right: 10px; font-size: 11px; color: var(--text-faint);
+    background: rgba(15,17,23,.7); padding: 3px 8px; border-radius: 6px; pointer-events: none; }
+
+  /* Budapest district picker (fallback for kerület cards) */
+  .bp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px,1fr)); gap: 8px; margin-bottom: 16px; }
+  .bp-choice {
+    appearance: none; font: inherit; font-weight: 600; font-size: 14px; cursor: pointer;
+    background: var(--surface); border: 1.5px solid var(--border); color: var(--text);
+    border-radius: var(--radius-sm); padding: 12px; transition: all .15s var(--ease);
+  }
+  .bp-choice:hover:not(:disabled) { border-color: var(--accent); transform: translateY(-1px); }
+  .bp-choice:disabled { cursor: default; }
+  .bp-choice.correct { border-color: var(--green); background: var(--green-soft); color: var(--green); }
+  .bp-choice.wrong { border-color: var(--red); background: var(--red-soft); color: var(--red); }
+  .bp-choice.dim { opacity: .4; }
+
+  .empty-state { text-align: center; padding: 64px 20px; color: var(--text-dim); }
+  .empty-state .ico { font-size: 52px; margin-bottom: 14px; }
+  .empty-state h3 { font-size: 20px; color: var(--text); font-weight: 700; margin-bottom: 6px; }
+
+  /* ---------- Learned list ---------- */
+  .learned-toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 18px; flex-wrap: wrap; }
+  .learned-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+  .learned-item {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    padding: 13px 15px; display: flex; align-items: center; gap: 12px;
+  }
+  .learned-item .info { min-width: 0; flex: 1; }
+  .learned-item .lname { font-weight: 700; font-size: 15px; letter-spacing: -.01em; }
+  .learned-item .lmeta { font-size: 12.5px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .learned-item button {
+    flex: none; appearance: none; border: 1px solid var(--border); background: transparent; color: var(--text-dim);
+    width: 30px; height: 30px; border-radius: 8px; cursor: pointer; font-size: 15px; transition: all .15s;
+  }
+  .learned-item button:hover { border-color: var(--red); color: #fff; background: var(--red); }
+
+  /* ---------- Map ---------- */
+  .map-toggle { margin-bottom: 16px; }
+
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
+    padding: 12px 20px; border-radius: 100px; font-weight: 600; font-size: 14px; z-index: 300;
+    box-shadow: var(--shadow); opacity: 0; pointer-events: none; transition: all .3s var(--ease);
+    display: flex; align-items: center; gap: 9px;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .progress-bar { height: 6px; background: var(--surface); border-radius: 100px; overflow: hidden; margin-bottom: 22px; }
+  .progress-bar > div { height: 100%; background: linear-gradient(90deg, var(--accent), #a855f7); border-radius: 100px; transition: width .4s var(--ease); }
+
+  @media (max-width: 640px) {
+    .brand span.full { display: none; }
+    nav.tabs button { padding: 8px 11px; }
+    .flashcard .fc-name { font-size: 30px; }
+    h1.view-title { font-size: 22px; }
+  }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <span class="logo">🇭🇺</span>
+      <span class="full">Településkvíz</span>
+    </div>
+    <nav class="tabs" id="tabs">
+      <button data-view="browse" class="active">Böngészés</button>
+      <button data-view="practice">Gyakorlás</button>
+      <button data-view="learned">Megtanult <span class="count" id="learnedCount">0</span></button>
+    </nav>
+    <button class="profile-btn" id="profileBtn" title="Profil kezelése">
+      <span class="pfx-ico">👤</span><span class="pfx-name" id="profileName">—</span>
+    </button>
+  </div>
+</header>
+
+<main class="app" id="main"></main>
+
+<div class="toast" id="toast"></div>
+
+<script src="data.js"></script>
+<script src="map.js"></script>
+<script>
+"use strict";
+
+/* ============================ State ============================ */
+const PROFILES_KEY = 'telepuleskviz.profiles.v1';
+const ACTIVE_KEY   = 'telepuleskviz.activeProfile.v1';
+const OLD_LEARNED_KEY = 'telepuleskviz.learned.v1';
+const OLD_STATS_KEY   = 'telepuleskviz.stats.v1';
+
+const DATA = APP_DATA;
+const SETTLEMENTS = DATA.settlements;
+const DISTRICTS = DATA.districts;
+
+// Sorted district list for choices / lookups
+const DISTRICTS_SORTED = [...DISTRICTS].sort((a,b) => a.name.localeCompare(b.name, 'hu'));
+const DISTRICT_BY_NAME = Object.fromEntries(DISTRICTS.map(d => [d.name, d]));
+
+// Interactive map geometry (174 rural járás; Budapest kerület has no polygon)
+const MAP_BY_NAME = Object.fromEntries((typeof MAP_DATA !== 'undefined' ? MAP_DATA.districts : []).map(d => [d.name, d]));
+function isBudapest(districtName){ return districtName.startsWith('Budapest'); }
+
+/* ---------- Profiles: each profile stores its own learned set + stats ---------- */
+const learnedKey = p => 'telepuleskviz.learned.' + p;
+const statsKey   = p => 'telepuleskviz.stats.' + p;
+
+function loadProfiles() {
+  try { const a = JSON.parse(localStorage.getItem(PROFILES_KEY)); if (Array.isArray(a)) return a; } catch {}
+  return [];
+}
+function saveProfiles() { localStorage.setItem(PROFILES_KEY, JSON.stringify(profiles)); }
+
+let profiles = loadProfiles();
+let activeProfile = localStorage.getItem(ACTIVE_KEY) || null;
+
+// One-time migration: fold any pre-profile data into a default profile.
+(function migrate() {
+  if (profiles.length) return;
+  const hadOld = localStorage.getItem(OLD_LEARNED_KEY) !== null || localStorage.getItem(OLD_STATS_KEY) !== null;
+  if (hadOld) {
+    const name = 'Alapértelmezett';
+    profiles = [name];
+    if (localStorage.getItem(OLD_LEARNED_KEY) !== null) {
+      localStorage.setItem(learnedKey(name), localStorage.getItem(OLD_LEARNED_KEY));
+      localStorage.removeItem(OLD_LEARNED_KEY);
+    }
+    if (localStorage.getItem(OLD_STATS_KEY) !== null) {
+      localStorage.setItem(statsKey(name), localStorage.getItem(OLD_STATS_KEY));
+      localStorage.removeItem(OLD_STATS_KEY);
+    }
+    activeProfile = name;
+    saveProfiles();
+    localStorage.setItem(ACTIVE_KEY, activeProfile);
+  }
+})();
+
+// Ensure active profile is valid (may be null if no profiles yet)
+if (activeProfile && !profiles.includes(activeProfile)) activeProfile = null;
+if (!activeProfile && profiles.length) activeProfile = profiles[0];
+
+function loadLearned() {
+  if (!activeProfile) return new Set();
+  try { return new Set(JSON.parse(localStorage.getItem(learnedKey(activeProfile))) || []); }
+  catch { return new Set(); }
+}
+function saveLearned() { if (activeProfile) localStorage.setItem(learnedKey(activeProfile), JSON.stringify([...learned])); }
+
+function loadStats() {
+  if (!activeProfile) return { correct: 0, wrong: 0 };
+  try { return Object.assign({correct:0, wrong:0}, JSON.parse(localStorage.getItem(statsKey(activeProfile)))); }
+  catch { return {correct:0, wrong:0}; }
+}
+function saveStats() { if (activeProfile) localStorage.setItem(statsKey(activeProfile), JSON.stringify(stats)); }
+
+let learned = loadLearned();
+let stats = loadStats();
+
+function switchProfile(name) {
+  if (!profiles.includes(name)) return;
+  activeProfile = name;
+  localStorage.setItem(ACTIVE_KEY, name);
+  learned = loadLearned();
+  stats = loadStats();
+  practiceState = null;
+  render();
+}
+
+function createProfile(rawName) {
+  const name = (rawName || '').trim();
+  if (!name) return { ok: false, msg: 'A név nem lehet üres.' };
+  if (name.length > 40) return { ok: false, msg: 'A név legfeljebb 40 karakter lehet.' };
+  if (profiles.some(p => p.toLowerCase() === name.toLowerCase())) return { ok: false, msg: 'Ilyen nevű profil már létezik.' };
+  profiles.push(name);
+  saveProfiles();
+  switchProfile(name);
+  return { ok: true };
+}
+
+function deleteProfile(name) {
+  const i = profiles.indexOf(name);
+  if (i < 0) return;
+  profiles.splice(i, 1);
+  saveProfiles();
+  localStorage.removeItem(learnedKey(name));
+  localStorage.removeItem(statsKey(name));
+  if (activeProfile === name) {
+    activeProfile = profiles[0] || null;
+    if (activeProfile) localStorage.setItem(ACTIVE_KEY, activeProfile);
+    else localStorage.removeItem(ACTIVE_KEY);
+    learned = loadLearned();
+    stats = loadStats();
+    practiceState = null;
+  }
+  render();
+}
+
+let currentView = 'browse';
+
+/* ============================ Helpers ============================ */
+const $ = sel => document.querySelector(sel);
+const el = (tag, props = {}, ...kids) => {
+  const n = document.createElement(tag);
+  for (const [k,v] of Object.entries(props)) {
+    if (k === 'class') n.className = v;
+    else if (k === 'html') n.innerHTML = v;
+    else if (k.startsWith('on') && typeof v === 'function') n.addEventListener(k.slice(2), v);
+    else if (v !== null && v !== undefined && v !== false) n.setAttribute(k, v);
+  }
+  for (const kid of kids.flat()) { if (kid != null && kid !== false) n.append(kid.nodeType ? kid : document.createTextNode(kid)); }
+  return n;
+};
+function norm(s){ return s.toLowerCase()
+  .replace(/á/g,'a').replace(/é/g,'e').replace(/í/g,'i')
+  .replace(/[óöő]/g,'o').replace(/[úüű]/g,'u'); }
+
+let toastTimer;
+function toast(msg, icon='✓') {
+  const t = $('#toast');
+  t.innerHTML = '';
+  t.append(el('span', {}, icon), el('span', {}, msg));
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+const searchIcon = () => el('div', {html:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>'}).firstChild;
+
+function updateLearnedCount(){
+  $('#learnedCount').textContent = learned.size;
+  $('#profileName').textContent = activeProfile || 'Profil';
+}
+
+$('#profileBtn').addEventListener('click', openProfileModal);
+
+/* ============================ Profiles ============================ */
+function openProfileModal() {
+  const body = el('div', { class: 'modal-body' });
+
+  const list = el('div', { class: 'profile-list' });
+  const errBox = el('div', { class: 'profile-err' });
+
+  function drawList() {
+    list.innerHTML = '';
+    if (!profiles.length) {
+      list.append(el('div', { style: 'color:var(--text-dim);font-size:14px;padding:4px 2px' },
+        'Még nincs profil. Hozz létre egyet lent, hogy elmentse a haladásodat.'));
+      return;
+    }
+    for (const name of profiles) {
+      const lc = (JSON.parse(localStorage.getItem(learnedKey(name)) || '[]') || []).length;
+      const st = (() => { try { return JSON.parse(localStorage.getItem(statsKey(name))) || {correct:0,wrong:0}; } catch { return {correct:0,wrong:0}; } })();
+      const total = st.correct + st.wrong;
+      const acc = total ? Math.round(st.correct / total * 100) : 0;
+      const isActive = name === activeProfile;
+      const row = el('div', { class: 'profile-row' + (isActive ? ' active' : '') },
+        el('div', { class: 'pr-info' },
+          el('div', { class: 'pr-name' }, name, isActive ? el('span', { class: 'pr-badge' }, 'aktív') : null),
+          el('div', { class: 'pr-stats' }, `${lc} megtanult · ${st.correct}/${total} helyes${total ? ` (${acc}%)` : ''}`)),
+        el('button', { class: 'pr-del', title: 'Profil törlése' }, '🗑'));
+      row.addEventListener('click', (e) => {
+        if (e.target.closest('.pr-del')) return;
+        if (name !== activeProfile) { switchProfile(name); backdrop.remove(); toast(`Profil: ${name}`, '👤'); }
+        else backdrop.remove();
+      });
+      row.querySelector('.pr-del').addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (confirm(`Biztosan törlöd a(z) "${name}" profilt? A hozzá tartozó megtanult települések és statisztikák véglegesen elvesznek.`)) {
+          deleteProfile(name);
+          drawList();
+        }
+      });
+      list.append(row);
+    }
+  }
+  drawList();
+
+  const input = el('input', { type: 'text', placeholder: 'Új profil neve…', maxlength: '40' });
+  const addBtn = el('button', { class: 'btn primary' }, '+ Létrehozás');
+  function submit() {
+    const res = createProfile(input.value);
+    if (!res.ok) { errBox.textContent = res.msg; return; }
+    errBox.textContent = '';
+    input.value = '';
+    drawList();
+    toast(`Profil létrehozva: ${activeProfile}`, '👤');
+  }
+  addBtn.addEventListener('click', submit);
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
+
+  body.append(list, el('div', { class: 'profile-create' }, input, addBtn), errBox);
+
+  const backdrop = openModal('Profilok', 'Minden profil külön tárolja a megtanult településeket és a statisztikát', body);
+  setTimeout(() => input.focus(), 50);
+}
+
+/* ============================ Router ============================ */
+function setView(view) {
+  currentView = view;
+  document.querySelectorAll('#tabs button').forEach(b =>
+    b.classList.toggle('active', b.dataset.view === view));
+  render();
+}
+$('#tabs').addEventListener('click', e => {
+  const btn = e.target.closest('button'); if (btn) setView(btn.dataset.view);
+});
+
+function render() {
+  const main = $('#main');
+  main.innerHTML = '';
+  updateLearnedCount();
+  if (currentView === 'browse') main.append(renderBrowse());
+  else if (currentView === 'practice') main.append(renderPractice());
+  else if (currentView === 'learned') main.append(renderLearned());
+}
+
+/* ============================ Map component (browse: interactive) ============================ */
+function browseMap() {
+  const wrap = el('div', { class: 'jmap-wrap live' });
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(svgNS, 'svg');
+  svg.setAttribute('viewBox', `0 0 ${MAP_DATA.width} ${MAP_DATA.height}`);
+  const tooltip = el('div', { class: 'jmap-tooltip' });
+
+  for (const d of MAP_DATA.districts) {
+    const p = document.createElementNS(svgNS, 'path');
+    p.setAttribute('d', d.path);
+    p.setAttribute('class', 'jd');
+    p.dataset.name = d.name;
+    const dist = DISTRICT_BY_NAME[d.name];
+    p.addEventListener('mousemove', (e) => {
+      tooltip.innerHTML = '';
+      tooltip.append(
+        el('span', {}, d.name + ' járás'),
+        el('span', { class: 'tt-county' }, dist ? `${dist.county} · ${dist.settlements.length} település` : ''));
+      const r = wrap.getBoundingClientRect();
+      tooltip.style.left = (e.clientX - r.left) + 'px';
+      tooltip.style.top = (e.clientY - r.top) + 'px';
+      tooltip.classList.add('show');
+    });
+    p.addEventListener('mouseleave', () => tooltip.classList.remove('show'));
+    if (dist) p.addEventListener('click', () => openDistrict(dist));
+    svg.append(p);
+  }
+  wrap.append(svg, tooltip);
+  return wrap;
+}
+
+/* ============================ View: Browse ============================ */
+function renderBrowse() {
+  const view = el('div', { class: 'view' });
+  view.append(
+    el('h1', { class: 'view-title' }, 'Járások böngészése'),
+    el('p', { class: 'view-sub' }, `${DISTRICTS.length} járás · ${SETTLEMENTS.length} település — kattints egy járásra a településekért`)
+  );
+
+  // Map toggle (interactive — click a district to open its settlements)
+  const mapHolder = el('div');
+  let mapShown = false;
+  const mapBtn = el('button', { class: 'btn ghost sm map-toggle' }, '🗺️ Térkép megjelenítése');
+  mapBtn.addEventListener('click', () => {
+    mapShown = !mapShown;
+    if (mapShown) {
+      mapHolder.append(
+        browseMap(),
+        el('div', { class: 'jmap-hint', style:'margin-top:8px' }, 'Kattints egy járásra a térképen a települései megtekintéséhez · Budapest kerületei nem szerepelnek a térképen.'));
+      mapBtn.textContent = '🗺️ Térkép elrejtése';
+    } else { mapHolder.innerHTML = ''; mapBtn.textContent = '🗺️ Térkép megjelenítése'; }
+  });
+  view.append(mapBtn, mapHolder);
+
+  // Search
+  const input = el('input', { type: 'text', placeholder: 'Keresés járásra, vármegyére vagy településre…' });
+  const searchWrap = el('div', { class: 'search' }, searchIcon(), input);
+  view.append(searchWrap);
+
+  const results = el('div');
+  view.append(results);
+
+  function draw(query = '') {
+    results.innerHTML = '';
+    const q = norm(query.trim());
+
+    // county -> districts (filtered)
+    const byCounty = {};
+    for (const d of DISTRICTS_SORTED) {
+      let match = !q;
+      if (q) {
+        if (norm(d.name).includes(q) || norm(d.county).includes(q)) match = true;
+        else if (d.settlements.some(s => norm(s).includes(q))) match = true;
+      }
+      if (!match) continue;
+      (byCounty[d.county] ||= []).push(d);
+    }
+
+    const counties = Object.keys(byCounty).sort((a,b)=>a.localeCompare(b,'hu'));
+    if (!counties.length) {
+      results.append(el('div', { class: 'empty-state' },
+        el('div', { class: 'ico' }, '🔍'),
+        el('h3', {}, 'Nincs találat'),
+        el('p', {}, 'Próbálj másik keresőkifejezést.')));
+      return;
+    }
+
+    for (const county of counties) {
+      const group = el('div', { class: 'county-group' });
+      const ds = byCounty[county];
+      group.append(el('div', { class: 'county-head' },
+        el('h2', {}, county === 'főváros' ? 'Budapest' : county + ' vármegye'),
+        el('span', { class: 'n' }, `${ds.length} járás`)));
+      const grid = el('div', { class: 'district-grid' });
+      for (const d of ds) {
+        const card = el('button', { class: 'district-card' },
+          el('div', { class: 'dname' }, d.name + ' járás'),
+          el('div', { class: 'dmeta' }, `${d.settlements.length} település`));
+        card.addEventListener('click', () => openDistrict(d));
+        grid.append(card);
+      }
+      group.append(grid);
+      results.append(group);
+    }
+  }
+
+  input.addEventListener('input', () => draw(input.value));
+  draw();
+  return view;
+}
+
+function openDistrict(d) {
+  const body = el('div', { class: 'modal-body' });
+  const list = el('div', { class: 'settlement-list' });
+  for (const name of d.settlements) {
+    const s = SETTLEMENTS.find(x => x.name === name);
+    const chip = el('div', { class: 'settlement-chip' + (learned.has(name) ? ' learned' : '') },
+      learned.has(name) ? el('span', {}, '✓') : null,
+      name,
+      s && s.type === 'város' ? el('span', { class: 'tag' }, 'város') : null);
+    list.append(chip);
+  }
+  body.append(list);
+
+  openModal(d.name + ' járás', `${d.county === 'főváros' ? 'Budapest' : d.county} · ${d.settlements.length} település`, body);
+}
+
+/* ============================ View: Practice ============================ */
+let practiceState = null;
+
+function practicePool() {
+  // Skip Budapest kerület "settlements" (name == district, no map geometry, trivial)
+  return SETTLEMENTS.filter(s => !learned.has(s.name) && !isBudapest(s.district));
+}
+
+function newQuestion() {
+  const pool = practicePool();
+  if (!pool.length) { practiceState = null; return; }
+  const settlement = pool[Math.floor(Math.random() * pool.length)];
+  practiceState = { settlement, correct: settlement.district, answered: null };
+}
+
+function renderPractice() {
+  const view = el('div', { class: 'view practice-wrap' });
+
+  const pool = practicePool();
+  if (!pool.length) {
+    view.append(
+      el('h1', { class: 'view-title' }, 'Gyakorlás'),
+      el('div', { class: 'empty-state' },
+        el('div', { class: 'ico' }, '🎉'),
+        el('h3', {}, learned.size ? 'Minden települést megtanultál!' : 'Nincs gyakorolható település'),
+        el('p', {}, learned.size
+          ? 'Vegyél vissza néhány települést a megtanultak közül, hogy újra gyakorolhasd őket.'
+          : 'Nincs adat.'),
+        learned.size ? el('button', { class: 'btn primary', style: 'margin-top:16px', onclick: () => setView('learned') }, 'Megtanultak megnyitása') : null
+      ));
+    return view;
+  }
+
+  if (!practiceState) newQuestion();
+  const ps = practiceState;
+
+  // Stats
+  const total = SETTLEMENTS.length;
+  const done = learned.size;
+  const acc = (stats.correct + stats.wrong) ? Math.round(stats.correct / (stats.correct + stats.wrong) * 100) : 0;
+
+  view.append(
+    el('div', { class: 'stats-row' },
+      el('div', { class: 'stat' }, el('div', { class: 'v' }, String(pool.length)), el('div', { class: 'l' }, 'Hátralévő')),
+      el('div', { class: 'stat good' }, el('div', { class: 'v' }, String(stats.correct)), el('div', { class: 'l' }, 'Helyes')),
+      el('div', { class: 'stat bad' }, el('div', { class: 'v' }, String(stats.wrong)), el('div', { class: 'l' }, 'Hibás')),
+      el('div', { class: 'stat' }, el('div', { class: 'v' }, acc + '%'), el('div', { class: 'l' }, 'Pontosság')),
+    )
+  );
+
+  // Progress
+  view.append(el('div', { class: 'progress-bar' }, el('div', { style: `width:${Math.round(done/total*100)}%` })));
+
+  // Flashcard
+  const s = ps.settlement;
+  const card = el('div', { class: 'flashcard' },
+    el('div', { class: 'fc-label' }, 'Melyik járásban van?'),
+    el('div', { class: 'fc-name' }, s.name),
+    el('span', { class: 'fc-type', style: 'margin-top:18px' }, s.type));
+  view.append(card);
+
+  // Result banner (if answered)
+  if (ps.answered) {
+    const ok = ps.answered === ps.correct;
+    view.append(el('div', { class: 'result-banner ' + (ok ? 'ok' : 'no') },
+      el('span', { class: 'big' }, ok ? '✓' : '✕'),
+      el('span', {}, ok ? 'Helyes! ' : 'Nem talált. ',
+        el('span', { class:'guess' },
+          ok ? `${s.name} a(z) ${ps.correct} járásban van.`
+             : `Te a(z) ${ps.answered} járásra kattintottál. ${s.name} valójában a(z) ${ps.correct} járásban van (zöld).`))));
+  }
+
+  // Answer UI: interactive map (rural) — Budapest never reaches here (filtered from pool)
+  view.append(el('div', { class: 'jmap-hint' },
+    ps.answered ? 'Zöld: a helyes járás · Piros: amit választottál'
+                : 'Vidd az egeret a térkép fölé, és kattints a járásra, amit tippelsz.'));
+  view.append(interactiveMap(ps));
+
+  // Actions
+  const actions = el('div', { class: 'practice-actions', style:'margin-top:4px' });
+  if (ps.answered) {
+    actions.append(el('button', { class: 'btn primary', onclick: () => { newQuestion(); render(); } }, 'Következő →'));
+  } else {
+    actions.append(el('button', { class: 'btn ghost', onclick: () => { newQuestion(); render(); } }, '↷ Átugrás'));
+  }
+  actions.append(el('button', { class: 'btn', onclick: () => markLearned(s.name) }, '✓ Ezt már tudom'));
+  if (stats.correct || stats.wrong) {
+    actions.append(el('button', { class: 'btn ghost danger', onclick: resetStats }, '↺ Statisztika nullázása'));
+  }
+  view.append(actions);
+
+  return view;
+}
+
+/* ---------- Interactive answering map ---------- */
+function interactiveMap(ps) {
+  const wrap = el('div', { class: 'jmap-wrap' + (ps.answered ? '' : ' live') });
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(svgNS, 'svg');
+  svg.setAttribute('viewBox', `0 0 ${MAP_DATA.width} ${MAP_DATA.height}`);
+  svg.setAttribute('role', 'group');
+
+  const tooltip = el('div', { class: 'jmap-tooltip' });
+  const paths = {};
+
+  for (const d of MAP_DATA.districts) {
+    const p = document.createElementNS(svgNS, 'path');
+    p.setAttribute('d', d.path);
+    p.setAttribute('class', 'jd' + (ps.answered ? ' locked' : ''));
+    p.dataset.name = d.name;
+    paths[d.name] = p;
+
+    if (!ps.answered) {
+      p.addEventListener('mousemove', (e) => {
+        tooltip.innerHTML = '';
+        tooltip.append(el('span', {}, d.name + ' járás'));
+        const r = wrap.getBoundingClientRect();
+        tooltip.style.left = (e.clientX - r.left) + 'px';
+        tooltip.style.top = (e.clientY - r.top) + 'px';
+        tooltip.classList.add('show');
+      });
+      p.addEventListener('mouseleave', () => tooltip.classList.remove('show'));
+      p.addEventListener('click', () => answer(d.name));
+    }
+    svg.append(p);
+  }
+
+  // Post-answer highlighting
+  if (ps.answered) {
+    if (paths[ps.correct]) paths[ps.correct].classList.add('correct');
+    if (ps.answered !== ps.correct && paths[ps.answered]) paths[ps.answered].classList.add('wrong');
+  }
+
+  wrap.append(svg, tooltip);
+  return wrap;
+}
+
+function answer(districtName) {
+  if (practiceState.answered) return;
+  practiceState.answered = districtName;
+  if (districtName === practiceState.correct) stats.correct++; else stats.wrong++;
+  saveStats();
+  render();
+}
+
+function markLearned(name) {
+  learned.add(name);
+  saveLearned();
+  toast(`"${name}" a megtanultak közé került`);
+  newQuestion();
+  render();
+}
+
+function resetStats() {
+  if (!confirm('Biztosan lenullázod a Helyes és Hibás statisztikát, és előlről kezded a gyakorlást? A megtanult települések megmaradnak.')) return;
+  stats = { correct: 0, wrong: 0 };
+  saveStats();
+  newQuestion();
+  toast('Statisztika lenullázva', '↺');
+  render();
+}
+
+/* ============================ View: Learned ============================ */
+function renderLearned() {
+  const view = el('div', { class: 'view' });
+  view.append(
+    el('h1', { class: 'view-title' }, 'Megtanult települések'),
+    el('p', { class: 'view-sub' }, `${learned.size} település · ezek nem jelennek meg a gyakorlásban`)
+  );
+
+  if (!learned.size) {
+    view.append(el('div', { class: 'empty-state' },
+      el('div', { class: 'ico' }, '📚'),
+      el('h3', {}, 'Még nincs megtanult település'),
+      el('p', {}, 'A gyakorlás közben az „Ezt már tudom" gombbal jelölhetsz településeket.'),
+      el('button', { class: 'btn primary', style:'margin-top:16px', onclick: () => setView('practice') }, 'Gyakorlás indítása')));
+    return view;
+  }
+
+  const items = [...learned].map(name => SETTLEMENTS.find(s => s.name === name)).filter(Boolean)
+    .sort((a,b) => a.name.localeCompare(b.name,'hu'));
+
+  // Toolbar
+  const input = el('input', { type: 'text', placeholder: 'Szűrés…' });
+  const searchWrap = el('div', { class: 'search', style:'flex:1;margin-bottom:0;min-width:200px' }, searchIcon(), input);
+  const resetBtn = el('button', { class: 'btn danger sm' }, '🗑 Összes visszatétele');
+  resetBtn.addEventListener('click', () => {
+    if (confirm(`Biztosan visszateszed mind a(z) ${learned.size} települést a gyakorlandók közé?`)) {
+      learned.clear(); saveLearned(); toast('Lista kiürítve'); render();
+    }
+  });
+  view.append(el('div', { class: 'learned-toolbar' }, searchWrap, resetBtn));
+
+  const grid = el('div', { class: 'learned-grid' });
+  view.append(grid);
+
+  function draw(q='') {
+    grid.innerHTML = '';
+    const nq = norm(q.trim());
+    const filtered = items.filter(s => !nq || norm(s.name).includes(nq) || norm(s.district).includes(nq) || norm(s.county).includes(nq));
+    if (!filtered.length) {
+      grid.append(el('div', { class: 'empty-state', style:'grid-column:1/-1' },
+        el('div', { class: 'ico' }, '🔍'), el('h3', {}, 'Nincs találat')));
+      return;
+    }
+    for (const s of filtered) {
+      const item = el('div', { class: 'learned-item' },
+        el('div', { class: 'info' },
+          el('div', { class: 'lname' }, s.name),
+          el('div', { class: 'lmeta' }, `${s.district} járás · ${s.county === 'főváros' ? 'Budapest' : s.county}`)),
+        el('button', { title: 'Visszatétel a gyakorlandók közé', onclick: () => {
+          learned.delete(s.name); saveLearned(); toast(`"${s.name}" visszakerült`, '↩'); render();
+        } }, '↩'));
+      grid.append(item);
+    }
+  }
+  input.addEventListener('input', () => draw(input.value));
+  draw();
+  return view;
+}
+
+/* ============================ Modal ============================ */
+function openModal(title, sub, bodyEl) {
+  const backdrop = el('div', { class: 'modal-backdrop' });
+  const modal = el('div', { class: 'modal' },
+    el('div', { class: 'modal-head' },
+      el('div', {},
+        el('div', { class: 'mtitle' }, title),
+        el('div', { class: 'msub' }, sub)),
+      el('button', { class: 'modal-close', onclick: () => backdrop.remove() }, '✕')),
+    bodyEl);
+  backdrop.append(modal);
+  backdrop.addEventListener('click', e => { if (e.target === backdrop) backdrop.remove(); });
+  document.addEventListener('keydown', function esc(e){ if(e.key==='Escape'){ backdrop.remove(); document.removeEventListener('keydown',esc);} });
+  document.body.append(backdrop);
+  return backdrop;
+}
+
+/* ============================ Init ============================ */
+render();
+if (!activeProfile) openProfileModal();
+</script>
+</body>
+</html>

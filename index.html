@@ -107,6 +107,34 @@
   .profile-create input:focus { outline: 0; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
   .profile-err { color: var(--red); font-size: 13px; margin-top: 10px; min-height: 16px; }
 
+  /* Practice settings bar */
+  .practice-settings { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 18px; }
+  .practice-settings .ps-count {
+    margin-left: 8px; font-size: 12px; font-weight: 600; color: var(--accent);
+    background: rgba(99,102,241,.15); padding: 2px 8px; border-radius: 100px;
+  }
+  .ps-switch { display: inline-flex; align-items: center; gap: 9px; cursor: pointer; font-size: 13.5px; font-weight: 600; color: var(--text-dim); user-select: none; }
+  .ps-switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+  .ps-switch .ps-track { width: 38px; height: 22px; border-radius: 100px; background: var(--surface-2); border: 1px solid var(--border); position: relative; transition: all .18s var(--ease); flex: none; }
+  .ps-switch .ps-thumb { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--text-dim); transition: all .18s var(--ease); }
+  .ps-switch input:checked + .ps-track { background: var(--accent); border-color: var(--accent); }
+  .ps-switch input:checked + .ps-track .ps-thumb { left: 18px; background: #fff; }
+  .ps-switch input:focus-visible + .ps-track { box-shadow: 0 0 0 3px var(--accent-glow); }
+
+  /* Practice settings modal */
+  .ps-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  .ps-summary { margin-left: auto; font-size: 13px; color: var(--text-dim); font-weight: 600; }
+  .ps-counties { display: flex; flex-direction: column; gap: 14px; }
+  .ps-county-head { display: flex; align-items: center; gap: 9px; cursor: pointer; padding-bottom: 7px; border-bottom: 1px solid var(--border); }
+  .ps-county-head .ps-county-name { font-weight: 700; font-size: 13.5px; text-transform: uppercase; letter-spacing: .02em; color: var(--text-dim); }
+  .ps-county-head .ps-county-n { margin-left: auto; font-size: 12px; color: var(--text-faint); font-weight: 600; }
+  .ps-district-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; margin-top: 9px; }
+  .ps-district { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; font-size: 13.5px; transition: all .13s var(--ease); }
+  .ps-district:hover { border-color: var(--accent); }
+  .ps-district.on { border-color: rgba(99,102,241,.5); background: rgba(99,102,241,.1); }
+  .ps-district input, .ps-county-head input { width: 16px; height: 16px; flex: none; accent-color: var(--accent); cursor: pointer; }
+  .ps-footer { position: sticky; bottom: 0; margin: 16px -22px -22px; padding: 14px 22px; background: var(--bg-soft); border-top: 1px solid var(--border); display: flex; justify-content: flex-end; }
+
   .view { animation: fade .3s var(--ease); }
   @keyframes fade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 
@@ -408,8 +436,31 @@ function loadStats() {
 }
 function saveStats() { if (activeProfile) localStorage.setItem(statsKey(activeProfile), JSON.stringify(stats)); }
 
+// Per-profile practice settings:
+//   districts: null  => all districts selected (default);  array => only those district names
+//   includeLearned: whether learned settlements are also drawn (default false)
+const settingsKey = p => 'telepuleskviz.settings.' + p;
+function loadSettings() {
+  if (!activeProfile) return { districts: null, includeLearned: false };
+  try {
+    const s = JSON.parse(localStorage.getItem(settingsKey(activeProfile))) || {};
+    return {
+      districts: Array.isArray(s.districts) ? s.districts : null,
+      includeLearned: !!s.includeLearned,
+    };
+  } catch { return { districts: null, includeLearned: false }; }
+}
+function saveSettings() { if (activeProfile) localStorage.setItem(settingsKey(activeProfile), JSON.stringify(settings)); }
+
 let learned = loadLearned();
 let stats = loadStats();
+let settings = loadSettings();
+
+// Rural districts available for practice (exclude Budapest — no settlements to place on map)
+const PRACTICE_DISTRICTS = DISTRICTS_SORTED.filter(d => !isBudapest(d.name));
+// A district counts as selected when the filter is null (all) or explicitly includes it.
+function isDistrictSelected(name) { return settings.districts === null || settings.districts.includes(name); }
+function selectedDistrictCount() { return settings.districts === null ? PRACTICE_DISTRICTS.length : settings.districts.filter(n => !isBudapest(n)).length; }
 
 function switchProfile(name) {
   if (!profiles.includes(name)) return;
@@ -417,6 +468,7 @@ function switchProfile(name) {
   localStorage.setItem(ACTIVE_KEY, name);
   learned = loadLearned();
   stats = loadStats();
+  settings = loadSettings();
   practiceState = null;
   render();
 }
@@ -439,12 +491,14 @@ function deleteProfile(name) {
   saveProfiles();
   localStorage.removeItem(learnedKey(name));
   localStorage.removeItem(statsKey(name));
+  localStorage.removeItem(settingsKey(name));
   if (activeProfile === name) {
     activeProfile = profiles[0] || null;
     if (activeProfile) localStorage.setItem(ACTIVE_KEY, activeProfile);
     else localStorage.removeItem(ACTIVE_KEY);
     learned = loadLearned();
     stats = loadStats();
+    settings = loadSettings();
     practiceState = null;
   }
   render();
@@ -547,6 +601,85 @@ function openProfileModal() {
 
   const backdrop = openModal('Profilok', 'Minden profil külön tárolja a megtanult településeket és a statisztikát', body);
   setTimeout(() => input.focus(), 50);
+}
+
+/* ============================ Practice settings (district filter) ============================ */
+function openPracticeSettings() {
+  // Work on a local, mutable set of selected district names; "all" is represented explicitly.
+  let selected = new Set(settings.districts === null ? PRACTICE_DISTRICTS.map(d => d.name) : settings.districts.filter(n => !isBudapest(n)));
+
+  // Group districts by county
+  const byCounty = {};
+  for (const d of PRACTICE_DISTRICTS) (byCounty[d.county] ||= []).push(d);
+  const counties = Object.keys(byCounty).sort((a, b) => a.localeCompare(b, 'hu'));
+
+  const body = el('div', { class: 'modal-body' });
+
+  const summary = el('div', { class: 'ps-summary' });
+  const list = el('div', { class: 'ps-counties' });
+
+  function refreshSummary() {
+    summary.textContent = `${selected.size} / ${PRACTICE_DISTRICTS.length} járás kiválasztva`;
+  }
+
+  function redraw() {
+    list.innerHTML = '';
+    for (const county of counties) {
+      const ds = byCounty[county];
+      const selInCounty = ds.filter(d => selected.has(d.name)).length;
+      const countyBox = el('div', { class: 'ps-county' });
+
+      const head = el('label', { class: 'ps-county-head' });
+      const headCb = el('input', { type: 'checkbox' });
+      headCb.checked = selInCounty === ds.length;
+      headCb.indeterminate = selInCounty > 0 && selInCounty < ds.length;
+      headCb.addEventListener('change', () => {
+        if (headCb.checked) ds.forEach(d => selected.add(d.name));
+        else ds.forEach(d => selected.delete(d.name));
+        redraw(); refreshSummary();
+      });
+      head.append(headCb,
+        el('span', { class: 'ps-county-name' }, county === 'főváros' ? 'Budapest' : county + ' vármegye'),
+        el('span', { class: 'ps-county-n' }, `${selInCounty}/${ds.length}`));
+      countyBox.append(head);
+
+      const grid = el('div', { class: 'ps-district-grid' });
+      for (const d of ds) {
+        const lab = el('label', { class: 'ps-district' + (selected.has(d.name) ? ' on' : '') });
+        const cb = el('input', { type: 'checkbox' });
+        cb.checked = selected.has(d.name);
+        cb.addEventListener('change', () => {
+          if (cb.checked) selected.add(d.name); else selected.delete(d.name);
+          redraw(); refreshSummary();
+        });
+        lab.append(cb, el('span', {}, d.name));
+        grid.append(lab);
+      }
+      countyBox.append(grid);
+      list.append(countyBox);
+    }
+  }
+
+  const allBtn = el('button', { class: 'btn ghost sm', onclick: () => { PRACTICE_DISTRICTS.forEach(d => selected.add(d.name)); redraw(); refreshSummary(); } }, 'Összes kijelölése');
+  const noneBtn = el('button', { class: 'btn ghost sm', onclick: () => { selected.clear(); redraw(); refreshSummary(); } }, 'Kijelölés törlése');
+  const toolbar = el('div', { class: 'ps-toolbar' }, allBtn, noneBtn, summary);
+
+  const saveBtn = el('button', { class: 'btn primary', onclick: () => {
+    // Normalize: if everything is selected, store null ("all") to stay future-proof.
+    settings.districts = (selected.size === PRACTICE_DISTRICTS.length) ? null : [...selected];
+    saveSettings();
+    practiceState = null;
+    backdrop.remove();
+    render();
+    toast('Gyakorlandó járások mentve', '⚙');
+  } }, 'Mentés');
+  const footer = el('div', { class: 'ps-footer' }, saveBtn);
+
+  refreshSummary();
+  redraw();
+  body.append(toolbar, list, footer);
+
+  const backdrop = openModal('Gyakorlandó járások', 'Csak a kiválasztott járások településeit dobja fel a gyakorlás', body);
 }
 
 /* ============================ Router ============================ */
@@ -701,8 +834,12 @@ function openDistrict(d) {
 let practiceState = null;
 
 function practicePool() {
-  // Skip Budapest kerület "settlements" (name == district, no map geometry, trivial)
-  return SETTLEMENTS.filter(s => !learned.has(s.name) && !isBudapest(s.district));
+  // Budapest kerület "settlements" (name == district) are skipped: no map geometry, trivial.
+  // Then filter by the selected districts and the "include learned" switch.
+  return SETTLEMENTS.filter(s =>
+    !isBudapest(s.district) &&
+    isDistrictSelected(s.district) &&
+    (settings.includeLearned || !learned.has(s.name)));
 }
 
 function newQuestion() {
@@ -715,17 +852,44 @@ function newQuestion() {
 function renderPractice() {
   const view = el('div', { class: 'view practice-wrap' });
 
+  // Settings bar — choose source districts + toggle learned
+  const selCount = selectedDistrictCount();
+  const allSelected = settings.districts === null;
+  const settingsBar = el('div', { class: 'practice-settings' },
+    el('button', { class: 'btn ghost sm', onclick: openPracticeSettings },
+      '⚙ Gyakorlandó járások',
+      el('span', { class: 'ps-count' }, allSelected ? 'mind' : `${selCount}/${PRACTICE_DISTRICTS.length}`)),
+    el('label', { class: 'ps-switch' },
+      (() => {
+        const cb = el('input', { type: 'checkbox' });
+        cb.checked = settings.includeLearned;
+        cb.addEventListener('change', () => {
+          settings.includeLearned = cb.checked;
+          saveSettings();
+          practiceState = null;
+          render();
+        });
+        return cb;
+      })(),
+      el('span', { class: 'ps-track' }, el('span', { class: 'ps-thumb' })),
+      el('span', {}, 'Megtanultakat is')));
+  view.append(settingsBar);
+
   const pool = practicePool();
   if (!pool.length) {
+    const noDistricts = selCount === 0;
     view.append(
-      el('h1', { class: 'view-title' }, 'Gyakorlás'),
       el('div', { class: 'empty-state' },
-        el('div', { class: 'ico' }, '🎉'),
-        el('h3', {}, learned.size ? 'Minden települést megtanultál!' : 'Nincs gyakorolható település'),
-        el('p', {}, learned.size
-          ? 'Vegyél vissza néhány települést a megtanultak közül, hogy újra gyakorolhasd őket.'
-          : 'Nincs adat.'),
-        learned.size ? el('button', { class: 'btn primary', style: 'margin-top:16px', onclick: () => setView('learned') }, 'Megtanultak megnyitása') : null
+        el('div', { class: 'ico' }, noDistricts ? '🗺️' : '🎉'),
+        el('h3', {}, noDistricts ? 'Nincs kiválasztott járás'
+          : (settings.includeLearned ? 'Nincs gyakorolható település' : 'A kiválasztott járásokban mindent megtanultál!')),
+        el('p', {}, noDistricts
+          ? 'Válassz legalább egy járást a „Gyakorlandó járások” gombbal.'
+          : (settings.includeLearned ? 'Nincs adat.'
+             : 'Kapcsold be a „Megtanultakat is” kapcsolót, vagy válassz több járást, esetleg vegyél vissza településeket a megtanultak közül.')),
+        noDistricts
+          ? el('button', { class: 'btn primary', style: 'margin-top:16px', onclick: openPracticeSettings }, 'Járások kiválasztása')
+          : (learned.size ? el('button', { class: 'btn', style: 'margin-top:16px', onclick: () => setView('learned') }, 'Megtanultak megnyitása') : null)
       ));
     return view;
   }
@@ -733,9 +897,10 @@ function renderPractice() {
   if (!practiceState) newQuestion();
   const ps = practiceState;
 
-  // Stats
-  const total = SETTLEMENTS.length;
-  const done = learned.size;
+  // Stats — "done"/"total" scoped to the currently selected districts
+  const inScope = SETTLEMENTS.filter(s => !isBudapest(s.district) && isDistrictSelected(s.district));
+  const total = inScope.length;
+  const done = inScope.filter(s => learned.has(s.name)).length;
   const acc = (stats.correct + stats.wrong) ? Math.round(stats.correct / (stats.correct + stats.wrong) * 100) : 0;
 
   view.append(

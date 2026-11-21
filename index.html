@@ -255,6 +255,12 @@
   .result-banner .guess { font-weight: 500; opacity: .85; }
 
   .practice-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  .kbd-hint {
+    margin-left: 8px; font-size: 11px; font-weight: 600; line-height: 1; padding: 3px 6px;
+    border-radius: 5px; background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.18);
+    font-family: inherit; letter-spacing: .02em;
+  }
+  .btn.ghost .kbd-hint { background: var(--surface-2); border-color: var(--border); color: var(--text-dim); }
 
   /* ---------- Interactive SVG map (practice answering) ---------- */
   .jmap-wrap {
@@ -947,9 +953,11 @@ function renderPractice() {
   // Actions
   const actions = el('div', { class: 'practice-actions', style:'margin-top:4px' });
   if (ps.answered) {
-    actions.append(el('button', { class: 'btn primary', onclick: () => { newQuestion(); render(); } }, 'Következő →'));
+    actions.append(el('button', { class: 'btn primary', onclick: () => { newQuestion(); render(); } },
+      'Következő →', el('kbd', { class: 'kbd-hint' }, 'Space')));
   } else {
-    actions.append(el('button', { class: 'btn ghost', onclick: () => { newQuestion(); render(); } }, '↷ Átugrás'));
+    actions.append(el('button', { class: 'btn ghost', onclick: () => { newQuestion(); render(); } },
+      '↷ Átugrás', el('kbd', { class: 'kbd-hint' }, 'Space')));
   }
   actions.append(el('button', { class: 'btn', onclick: () => markLearned(s.name) }, '✓ Ezt már tudom'));
   if (stats.correct || stats.wrong) {
@@ -1118,6 +1126,19 @@ function openModal(title, sub, bodyEl) {
 }
 
 /* ============================ Init ============================ */
+// Space advances practice: Következő (if answered) or Átugrás (if not).
+document.addEventListener('keydown', (e) => {
+  if (e.code !== 'Space' && e.key !== ' ') return;
+  if (currentView !== 'practice') return;
+  if (document.querySelector('.modal-backdrop')) return;          // a modal is open
+  const t = e.target;
+  if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+  if (!practiceState) return;                                      // nothing to advance
+  e.preventDefault();
+  newQuestion();
+  render();
+});
+
 render();
 if (!activeProfile) openProfileModal();
 </script>
